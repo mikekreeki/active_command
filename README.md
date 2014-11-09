@@ -1,6 +1,6 @@
 # ActiveCommand
 
-TODO: Write a gem description
+Extend Rails MVC with Commands and Listeners.
 
 ## Installation
 
@@ -20,7 +20,58 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+# app/controllers/users_controller.rb
+class API::V1::UsersController < ApplicationController
+  def create
+    command = User::CreateService.run(user_params)
+
+    if command.valid?
+      render json: command.result, status: 201
+    else
+      render json: { errors: command.errors }, status: 422
+    end
+  end
+end
+
+# app/listeners/kissmetrics_listener.rb
+class EmailListener
+  def user_created(user)
+    # Send welcome notification
+  end
+end
+
+# app/services/user/create_service.rb
+class User::CreateService < ActiveCommand::Command
+  group :user do
+    attribute :first_name
+    attribute :last_name
+  end
+
+  group :address do
+    attribute :street
+    attribute :city
+  end
+
+  subscribe :email_listener
+
+  def execute
+    user = create_user!
+
+    publish :user_created, user
+
+    user
+  end
+
+  private
+
+  def create_user!
+    User.create!(attributes_for(:user)) do
+      user.create_address! attributes_for(:address)
+    end
+  end
+end
+```
 
 ## Contributing
 
